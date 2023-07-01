@@ -1,6 +1,3 @@
-import tkinter as tk
-from tkinter import ttk
-from typing import Optional, Tuple, Union
 import customtkinter as ctk
 import sqlite3
 import  hashlib
@@ -16,7 +13,7 @@ DirectoryPath=os.path.dirname(os.path.abspath(__file__))#gets directory path of 
 
 
 
-class Login(ctk.CTk):
+class LoginWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.geometry(str((ScreenWidthStarting))+"x"+str((ScreenHeightStarting)))
@@ -36,10 +33,10 @@ class Login(ctk.CTk):
                 if row[0]==HashedUsername.hexdigest() and row[1]== HashedPassword.hexdigest():
                     print("correct")
                     NewWindow=MainWindow()
-                    NewWindow.mainloop()
+                    Main.withdraw()#hides login window
+                    NewWindow.mainloop()#opens new window
                     
-            
-            
+                        
        
         Button=ctk.CTkButton(self,
                              text="Enter",
@@ -67,5 +64,5 @@ cursor.execute("""Create Table if not exists UsernamesAndPasswords
 
 
 
-Main=Login()
+Main=LoginWindow()
 Main.mainloop()
