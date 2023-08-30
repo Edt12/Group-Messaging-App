@@ -2,6 +2,8 @@ import customtkinter as ctk
 import sqlite3
 import  hashlib
 import os
+from socket import *
+import multiprocessing
 conn=sqlite3.connect("Teams+/Database.db")
 cursor=conn.cursor()
 
@@ -10,59 +12,80 @@ ScreenHeightStarting=800
 ScreenWidthStarting=800
 DirectoryPath=os.path.dirname(os.path.abspath(__file__))#gets directory path of the file
 
+def SocketServer():#creating tcp socket so can receive messages
+    server=socket.socket(socket.AF_INET, socket.SOCK_STREAM)#Defines type of socket AF_INET =internet socket,SOCK_STREAM=TCP protocol#just for accepting connections not to be used to send
+    Host=socket.getaddrinfo(socket.gethostname(),9090)
+    print(Host)
+
+    server.bind(('10.0.1.10',9090))
+    server.listen(5)#if more than 5 connections waiting then reject
+    #ONLY USE COMMUNICATION SOCKET TO TALK TO CLIENT SERVER IS ONLY FOR ACCEPTING CONNECTIONS
 
 
+    while True:
+        print("Server")
+        (communication_socket, address)=server.accept()#returns address of client which connection and the clients comm socket
+        print(f"connected to {address}")
+        message=communication_socket.recv(1024).decode('utf-8')#1024 is buffur size
+        print(f"message from client is:{message}")
+        communication_socket.send(f"Got your message!Thank you!".encode('utf-8'))
+        communication_socket.close()
+        print(f"Connection with {address}ended!")
 
-class LoginWindow(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        self.geometry(str((ScreenWidthStarting))+"x"+str((ScreenHeightStarting)))
-        self.title("Login")
-        def Login():
-            Username=UsernameEntry.get()
-            Password=PasswordEntry.get()
-            EncodedUsername=Username.encode('utf-8')
-            EncodedPassword=Password.encode('utf-8')
-            HashedUsername=hashlib.sha3_512(EncodedUsername)
-            HashedPassword=hashlib.sha3_512(EncodedPassword)
-            cursor.execute("Select*from UsernamesAndPasswords")
-            UsersAndPasswords=cursor.fetchall()
-            print(UsersAndPasswords)
-            for row in UsersAndPasswords:
-       
-                if row[0]==HashedUsername.hexdigest() and row[1]== HashedPassword.hexdigest():
-                    print("correct")
-                    NewWindow=MainWindow()
-                    Main.withdraw()#hides login window
-                    NewWindow.mainloop()#opens new window
-                    
-                        
-       
-        Button=ctk.CTkButton(self,
-                             text="Enter",
-                             hover_color="blue",
-                             command=Login)
+def GUI():
+    class MainWindow(ctk.CTk):
+        def __init__(self):
+            super().__init__()
+            self.geometry(str((ScreenWidthStarting))+"x"+str((ScreenHeightStarting)))
+            self.title("MessageApp")
+            def Login():
+                Username=UsernameEntry.get()
+                Password=PasswordEntry.get()#grabs inputs from username and password boxes encodes then hashes them to compare to entry in database
+    
+                EncodedUsername=Username.encode('utf-8')
+                EncodedPassword=Password.encode('utf-8')
+                
+                HashedUsername=hashlib.sha3_512(EncodedUsername)
+                HashedPassword=hashlib.sha3_512(EncodedPassword)
+                
+                cursor.execute("Select*from UsernamesAndPasswords")
+                UsersAndPasswords=cursor.fetchall()
+                print(UsersAndPasswords)
+                for row in UsersAndPasswords:
         
-        Button.place(relheight=0.05,relwidth=0.1,relx=0.6,rely=0.4)
-        UsernameEntry=ctk.CTkEntry(self,placeholder_text="Username")
-        UsernameEntry.place(relheight=0.05,relwidth=0.15,relx=0.4,rely=0.4)
-        PasswordEntry=ctk.CTkEntry(self,placeholder_text="Password")
-        PasswordEntry.place(relheight=0.05,relwidth=0.15,relx=0.4,rely=0.5)
-        Title=ctk.CTkLabel(self,text="Teams+",text_color="White",font=('Bold',20))
-        Title.place(relheight=0.1,relwidth=0.2,relx=0.4,rely=0.3)
+                    if row[0]==HashedUsername.hexdigest() and row[1]== HashedPassword.hexdigest():
+                        print("correct")
+                        LoginFrame.destroy()
+                        MessageFrame.place(relheight=1,relwidth=1)
+            #creating Login Frame                
+            LoginFrame=ctk.CTkFrame(self)
+            LoginFrame.place(relheight=1,relwidth=1)#Frame which contains all widgets for the login screen
+            Button=ctk.CTkButton(LoginFrame,
+                                text="Enter",
+                                hover_color="blue",
+                                command=Login)
+            
+            Button.place(relheight=0.05,relwidth=0.1,relx=0.6,rely=0.4)
+            UsernameEntry=ctk.CTkEntry(LoginFrame,placeholder_text="Username")
+            UsernameEntry.place(relheight=0.05,relwidth=0.15,relx=0.4,rely=0.4)
+            PasswordEntry=ctk.CTkEntry(LoginFrame,placeholder_text="Password")
+            PasswordEntry.place(relheight=0.05,relwidth=0.15,relx=0.4,rely=0.5)
+            Title=ctk.CTkLabel(LoginFrame,text="Teams+",text_color="White",font=('Bold',20))
+            Title.place(relheight=0.1,relwidth=0.2,relx=0.4,rely=0.3)
+            #Creating Message Frame
+            MessageFrame=ctk.CTkFrame(self)
+            label=ctk.CTkLabel(MessageFrame,text="Working")
+            label.pack()
 
-class MainWindow(ctk.CTkToplevel):
-    def __init__(self):
-        super().__init__()
-        self.geometry(str((ScreenWidthStarting))+"x"+str((ScreenHeightStarting)))
-        self.title("MainWindow")
 
-cursor.execute("""Create Table if not exists UsernamesAndPasswords
-    (Username blob(512) Primary Key
-    ,Password blob(512)
-    )""")
+    cursor.execute("""Create Table if not exists UsernamesAndPasswords
+        (Username blob(512) Primary Key
+        ,Password blob(512)
+        )""")
 
 
+    Main=MainWindow()
+    Main.mainloop()
 
-Main=LoginWindow()
-Main.mainloop()
+GUIThread=multiprocessing.Process(target=GUI)
+GUIThread.start()
